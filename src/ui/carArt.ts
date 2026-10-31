@@ -23,6 +23,9 @@ export const PALETTE: Paint[] = [
   { body: '#8D6E63', dark: '#4E342E', light: '#BCAAA4' }, // marrom
   { body: '#ECEFF1', dark: '#78909C', light: '#FFFFFF' }, // branco
   { body: '#37474F', dark: '#102027', light: '#62727B' }, // preto
+  { body: '#D4E157', dark: '#9E9D24', light: '#F0F4C3' }, // verde-limão
+  { body: '#90A4AE', dark: '#546E7A', light: '#CFD8DC' }, // cinza
+  { body: '#7E57C2', dark: '#4527A0', light: '#B39DDB' }, // violeta
 ];
 
 const GLASS = '#B3E5FC';

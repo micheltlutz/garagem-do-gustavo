@@ -18,11 +18,12 @@ Bom saber:
 
 ## Como se joga
 
-- Cada veículo só anda no sentido em que está virado.
-- **Arrastar** move o carro; **tocar** faz ele deslizar até o fim do caminho livre.
-- Quando o caminho do carro vermelho fica livre, ele buzina, brilha e balança: é só **arrastar** (ou tocar) para tirá-lo da garagem.
-- A **lâmpada** mostra qual carro mexer (a dica também aparece sozinha depois de 40 segundos parado).
-- 36 fases em 3 mundos: amarelo (1–2 jogadas), verde (3–4) e roxo (5–7).
+- A garagem tem as bordas abertas. A meta é **tirar todos os veículos** e deixá-la vazia.
+- Cada veículo só anda no sentido em que está virado e sai pela frente ou por trás, quando o caminho até a borda está livre.
+- **Arrastar** move o veículo (ou o leva para fora); **tocar** faz ele sair, se estiver livre, ou deslizar até o fim do caminho.
+- A **lâmpada** mostra qual veículo tirar e por onde (a dica também aparece sozinha depois de 40 segundos parado).
+- A garagem nunca trava: sempre existe algum veículo livre para sair.
+- 36 fases (8x8) em 3 mundos: amarelo (4 a 7 veículos), verde (8 a 12) e roxo (13 a 16).
 
 ## Desenvolvimento
 
@@ -38,7 +39,7 @@ npm run icons           # gera os ícones PNG a partir de public/icon.svg
 ```
 
 Estrutura:
-- `src/game/`: regras do tabuleiro, solver (busca em largura) e fases.
+- `src/game/`: regras do tabuleiro, solver (dificuldade e dica) e fases.
 - `src/ui/`: tabuleiro na tela, desenhos dos carros, telas, ícones e confete.
 - `src/audio/sfx.ts`: sons sintetizados (sem arquivos de áudio).
 - `scripts/generate-levels.ts`: gerador de fases com semente fixa (sempre gera as mesmas fases).

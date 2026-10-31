@@ -2,7 +2,8 @@ import data from './levels.json';
 
 export interface Level {
   board: string;
-  minMoves: number;
+  /** Rodadas de saída para esvaziar a garagem (dificuldade). */
+  depth: number;
 }
 
 export const LEVELS: readonly Level[] = data;

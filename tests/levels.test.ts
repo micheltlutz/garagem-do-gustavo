@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { hasBlockingLaneCar, isSolved, parseBoard } from '../src/game/board.ts';
+import { parseBoard } from '../src/game/board.ts';
 import { LEVELS, WORLD_SIZE, worldOf } from '../src/game/levels.ts';
-import { puzzleKey, solve } from '../src/game/solver.ts';
+import { clearRounds, clearsWithHints } from '../src/game/solver.ts';
 
-const WORLD_MOVES: [number, number][] = [
+const WORLD_DEPTH: [number, number][] = [
   [1, 2],
+  [2, 3],
   [3, 4],
-  [5, 7],
 ];
 
 describe('fases', () => {
@@ -15,18 +15,18 @@ describe('fases', () => {
     expect(WORLD_SIZE).toBe(12);
   });
 
-  it.each(LEVELS.map((l, i) => [i + 1, l] as const))('fase %i é válida e tem a solução indicada', (n, level) => {
+  it.each(LEVELS.map((l, i) => [i + 1, l] as const))('fase %i dá para esvaziar com a dificuldade indicada', (n, level) => {
     const vehicles = parseBoard(level.board);
-    expect(isSolved(vehicles)).toBe(false);
-    expect(hasBlockingLaneCar(vehicles)).toBe(false);
-    expect(solve(vehicles)?.minMoves).toBe(level.minMoves);
-    const [lo, hi] = WORLD_MOVES[worldOf(n - 1)];
-    expect(level.minMoves).toBeGreaterThanOrEqual(lo);
-    expect(level.minMoves).toBeLessThanOrEqual(hi);
+    expect(vehicles.some((v) => v.target)).toBe(true);
+    expect(clearRounds(vehicles)).toBe(level.depth);
+    expect(clearsWithHints(vehicles)).toBe(true);
+    const [lo, hi] = WORLD_DEPTH[worldOf(n - 1)];
+    expect(level.depth).toBeGreaterThanOrEqual(lo);
+    expect(level.depth).toBeLessThanOrEqual(hi);
   });
 
-  it('não têm quebra-cabeças repetidos', () => {
-    const keys = LEVELS.map((l) => puzzleKey(parseBoard(l.board)));
-    expect(new Set(keys).size).toBe(keys.length);
+  it('não têm garagens repetidas', () => {
+    const boards = LEVELS.map((l) => l.board);
+    expect(new Set(boards).size).toBe(boards.length);
   });
 });

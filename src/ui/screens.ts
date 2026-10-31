@@ -151,7 +151,7 @@ export class GameScreen {
     this.nav = nav;
     this.board = new BoardView({
       onMove: () => this.resetIdle(),
-      onSolved: () => void this.celebrate(),
+      onCleared: () => void this.celebrate(),
     });
 
     const controls = document.createElement('div');

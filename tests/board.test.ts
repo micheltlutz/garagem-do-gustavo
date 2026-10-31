@@ -1,32 +1,39 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildGrid,
-  hasBlockingLaneCar,
-  isSolved,
+  exitSides,
   moveRange,
   parseBoard,
   serializeBoard,
   withPosition,
+  without,
 } from '../src/game/board.ts';
 
 const rows = (...r: string[]) => r.join('');
 
 const sample = rows(
-  '...B..',
-  '...B..',
-  'AA.B..',
-  '......',
-  '.CC...',
-  '......',
+  '...B....',
+  '...B....',
+  '...B....',
+  'AA......',
+  '........',
+  '.CC.....',
+  '........',
+  '......DD',
 );
 
 describe('parseBoard', () => {
   it('lê veículos, direção e tamanho', () => {
     const v = parseBoard(sample);
-    expect(v).toHaveLength(3);
-    expect(v[0]).toMatchObject({ id: 'A', row: 2, col: 0, len: 2, dir: 'h', target: true });
-    expect(v.find((x) => x.id === 'B')).toMatchObject({ row: 0, col: 3, len: 3, dir: 'v' });
-    expect(v.find((x) => x.id === 'C')).toMatchObject({ row: 4, col: 1, len: 2, dir: 'h' });
+    expect(v).toHaveLength(4);
+    expect(v[0]).toMatchObject({ id: 'A', row: 3, col: 0, len: 2, dir: 'h', target: true });
+    expect(v[1]).toMatchObject({ id: 'B', row: 0, col: 3, len: 3, dir: 'v', target: false });
+    expect(v[2]).toMatchObject({ id: 'C', row: 5, col: 1, len: 2, dir: 'h' });
+  });
+
+  it('aceita o vermelho em qualquer lugar e direção', () => {
+    const v = parseBoard(rows('........', '.....A..', '.....A..', '........', '........', '........', '........', '........'));
+    expect(v[0]).toMatchObject({ id: 'A', dir: 'v', row: 1, col: 5 });
   });
 
   it('volta para a mesma string', () => {
@@ -35,15 +42,12 @@ describe('parseBoard', () => {
 
   it('rejeita fases inválidas', () => {
     expect(() => parseBoard('AA')).toThrow();
-    expect(() => parseBoard(rows('......', '......', '......', '......', '......', '......'))).toThrow();
-    // vermelho em pé
-    expect(() => parseBoard(rows('......', 'A.....', 'A.....', '......', '......', '......'))).toThrow();
-    // vermelho fora da linha da saída
-    expect(() => parseBoard(rows('AA....', '......', '......', '......', '......', '......'))).toThrow();
     // veículo em L
-    expect(() => parseBoard(rows('......', '......', 'AA....', '...BB.', '....B.', '......'))).toThrow();
+    expect(() => parseBoard(rows('........', '........', '........', 'AA......', '...BB...', '....B...', '........', '........'))).toThrow();
     // veículo de 4 casas
-    expect(() => parseBoard(rows('......', '......', 'AA....', 'BBBB..', '......', '......'))).toThrow();
+    expect(() => parseBoard(rows('........', '........', '........', 'AA......', 'BBBB....', '........', '........', '........'))).toThrow();
+    // caractere estranho
+    expect(() => parseBoard(rows('........', '........', '........', 'AA..x...', '........', '........', '........', '........'))).toThrow();
   });
 });
 
@@ -51,35 +55,35 @@ describe('moveRange', () => {
   it('para nos outros veículos e nas bordas', () => {
     const v = parseBoard(sample);
     const grid = buildGrid(v);
-    expect(moveRange(v, 0, grid)).toEqual({ min: 0, max: 1 }); // A encosta em B
-    const b = v.findIndex((x) => x.id === 'B');
-    expect(moveRange(v, b, grid)).toEqual({ min: 0, max: 3 });
-    const c = v.findIndex((x) => x.id === 'C');
-    expect(moveRange(v, c, grid)).toEqual({ min: 0, max: 4 });
+    expect(moveRange(v, 0, grid)).toEqual({ min: 0, max: 6 }); // A: linha livre
+    expect(moveRange(v, 1, grid)).toEqual({ min: 0, max: 5 }); // B: caminhão
+    expect(moveRange(v, 3, grid)).toEqual({ min: 0, max: 6 }); // D: encostado na direita
   });
 });
 
-describe('isSolved', () => {
-  it('é verdadeiro só quando o caminho até a saída está livre', () => {
-    const v = parseBoard(sample);
-    expect(isSolved(v)).toBe(false);
-    const b = v.findIndex((x) => x.id === 'B');
-    expect(isSolved(withPosition(v, b, 3))).toBe(true);
+describe('exitSides', () => {
+  it('sai pelo lado em que o caminho até a borda está livre', () => {
+    const v = parseBoard(rows('........', '........', '.B....C.', '.B.AA.C.', '........', '........', '........', '........'));
+    expect(exitSides(v, 0)).toEqual({ back: false, forward: false }); // A preso entre B e C
+    expect(exitSides(v, 1)).toEqual({ back: true, forward: true }); // B livre para cima e para baixo
+  });
+
+  it('veículo encostado na borda pode sair por ela', () => {
+    const v = parseBoard(rows('AA......', 'B.......', 'B.......', '........', '........', '........', '........', '........'));
+    expect(exitSides(v, 0)).toEqual({ back: true, forward: true });
+    expect(exitSides(v, 1).back).toBe(false); // B tem o A em cima
+    expect(exitSides(v, 1).forward).toBe(true);
   });
 });
 
-describe('withPosition', () => {
-  it('não altera o array original', () => {
+describe('withPosition / without', () => {
+  it('não alteram o array original', () => {
     const v = parseBoard(sample);
-    const moved = withPosition(v, 0, 1);
+    const moved = withPosition(v, 0, 2);
     expect(v[0].col).toBe(0);
-    expect(moved[0].col).toBe(1);
-  });
-});
-
-describe('hasBlockingLaneCar', () => {
-  it('detecta carro deitado à direita do vermelho', () => {
-    expect(hasBlockingLaneCar(parseBoard(rows('......', '......', 'AA..BB', '......', '......', '......')))).toBe(true);
-    expect(hasBlockingLaneCar(parseBoard(sample))).toBe(false);
+    expect(moved[0].col).toBe(2);
+    const fewer = without(v, 1);
+    expect(fewer.map((x) => x.id)).toEqual(['A', 'C', 'D']);
+    expect(v).toHaveLength(4);
   });
 });

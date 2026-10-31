@@ -398,74 +398,30 @@ body {
 
 /* ---------- tabuleiro ---------- */
 
+/* Rua em volta da garagem: os veículos saem por ela. */
 .board-frame {
   position: relative;
-  border-radius: calc(var(--cell) * 0.32);
-  background: var(--wall);
-  box-shadow: inset 0 calc(var(--wall-w) * -0.3) 0 var(--wall-dark), 0 12px 28px rgba(0, 0, 0, 0.25);
+  border-radius: calc(var(--cell) * 0.4);
+  background: #37474f;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
 }
 
+/* A garagem: bordas abertas, marcadas só por uma faixa tracejada na cor do mundo. */
 .board-grid {
   position: absolute;
-  z-index: 2;
-  left: var(--wall-w);
-  top: var(--wall-w);
-  width: calc(var(--cell) * 6);
-  height: calc(var(--cell) * 6);
-  border-radius: calc(var(--cell) * 0.14);
+  left: var(--road-w);
+  top: var(--road-w);
+  width: calc(var(--cell) * var(--grid-n));
+  height: calc(var(--cell) * var(--grid-n));
+  border-radius: calc(var(--cell) * 0.1);
   background-color: var(--asphalt);
   background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.13) 2px, transparent 2px),
     linear-gradient(180deg, rgba(255, 255, 255, 0.13) 2px, transparent 2px);
   background-size: var(--cell) var(--cell);
   background-position: -1px -1px;
+  outline: calc(var(--cell) * 0.06) dashed var(--wall);
+  outline-offset: calc(var(--road-w) * 0.35);
   touch-action: none;
-}
-
-/* Faixa tracejada que leva o carro vermelho até a saída. */
-.lane {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(var(--cell) * (var(--exit-row) + 0.5) - 3px);
-  height: 6px;
-  border-radius: 3px;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(255, 235, 59, 0.6) 0 calc(var(--cell) * 0.25),
-    transparent 0 calc(var(--cell) * 0.5)
-  );
-  pointer-events: none;
-}
-
-.exit {
-  position: absolute;
-  z-index: 1;
-  left: calc(var(--wall-w) + var(--cell) * 6 - 2px);
-  top: calc(var(--wall-w) + var(--cell) * var(--exit-row));
-  width: calc(var(--wall-w) + 2px);
-  height: var(--cell);
-  background: var(--asphalt);
-  display: grid;
-  place-items: center;
-  color: #ffeb3b;
-}
-
-.exit svg {
-  width: 90%;
-  animation: exit-blink 1s ease-in-out infinite;
-}
-
-/* Saída aberta: setas mais rápidas e brilhantes. */
-.board-frame.open .exit svg {
-  color: #ffffff;
-  animation-duration: 0.5s;
-}
-
-@keyframes exit-blink {
-  50% {
-    opacity: 0.35;
-    transform: translateX(15%);
-  }
 }
 
 .vehicle {
@@ -498,22 +454,6 @@ body {
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.35)) brightness(1.05);
 }
 
-.vehicle.ready .art,
-.vehicle.leaving .art {
-  filter: drop-shadow(0 0 calc(var(--cell) * 0.12) #fff176) drop-shadow(0 0 calc(var(--cell) * 0.05) #ffffff);
-}
-
-/* Caminho livre: o vermelho balança em direção à saída, chamando a criança. */
-.vehicle.ready .art {
-  animation: ready-nudge 0.9s ease-in-out infinite;
-}
-
-@keyframes ready-nudge {
-  50% {
-    transform: translateX(5%);
-  }
-}
-
 .vehicle.hint .art {
   animation: nudge 0.8s ease-in-out infinite;
 }
@@ -529,31 +469,31 @@ body {
   }
 }
 
-/* Dica: contorno tracejado mostrando para onde levar o carro. */
-.ghost {
+/* Dica: seta pulsando na borda, por onde o veículo deve sair. */
+.hint-arrow {
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 0;
-  border-radius: calc(var(--cell) * 0.2);
-  border: calc(var(--cell) * 0.05) dashed rgba(255, 255, 255, 0.95);
-  background: rgba(255, 255, 255, 0.2);
+  z-index: 6;
+  width: var(--cell);
+  height: var(--cell);
   display: grid;
   place-items: center;
   color: #ffffff;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
   pointer-events: none;
-  animation: ghost-pulse 1s ease-in-out infinite;
+  animation: arrow-pulse 0.8s ease-in-out infinite;
 }
 
-.ghost svg {
-  width: calc(var(--cell) * 0.7);
-  height: calc(var(--cell) * 0.7);
+.hint-arrow svg {
+  width: 90%;
+  height: 90%;
   transform: rotate(var(--arrow-rotate, 0deg));
 }
 
-@keyframes ghost-pulse {
+@keyframes arrow-pulse {
   50% {
-    opacity: 0.45;
+    opacity: 0.4;
   }
 }
 

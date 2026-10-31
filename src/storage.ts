@@ -1,7 +1,9 @@
 // Progresso salvo no próprio iPad. Se o armazenamento falhar (modo privado,
 // por exemplo), o jogo continua funcionando, só não lembra o progresso.
 
-const KEY = 'garagem-do-gustavo:v1';
+// v2: tabuleiro 8x8 com fases novas (o progresso do 6x6 não vale mais).
+const KEY = 'garagem-do-gustavo:v2';
+const OLD_KEY = 'garagem-do-gustavo:v1';
 
 interface SaveData {
   done: number[];
@@ -18,6 +20,8 @@ function read(): SaveData {
         sound: data.sound !== false,
       };
     }
+    const old = localStorage.getItem(OLD_KEY);
+    if (old) return { done: [], sound: (JSON.parse(old) as Partial<SaveData>).sound !== false };
   } catch {
     // ignora: começa do zero
   }

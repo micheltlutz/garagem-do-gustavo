@@ -1,13 +1,16 @@
 // Regras do tabuleiro. Código puro (sem DOM), usado pelo jogo, pelo solver,
 // pelo gerador de fases e pelos testes.
 //
-// Uma fase é uma string de 36 caracteres (6x6, linha por linha):
+// Uma fase é uma string de 64 caracteres (8x8, linha por linha):
 //   '.'  casa vazia
-//   'A'  carro vermelho (alvo), sempre horizontal na linha EXIT_ROW
+//   'A'  carrinho vermelho (o "herói"; segue as mesmas regras dos outros)
 //   'B'..'Z' outros veículos (2 casas = carro, 3 casas = caminhão)
+//
+// As bordas da garagem são abertas: um veículo sai quando o caminho dele
+// até a borda (pela frente ou por trás) está livre. A fase termina quando
+// a garagem fica vazia.
 
-export const SIZE = 6;
-export const EXIT_ROW = 2;
+export const SIZE = 8;
 export const TARGET = 'A';
 
 export type Dir = 'h' | 'v';
@@ -26,9 +29,21 @@ export interface Range {
   max: number;
 }
 
+export interface ExitSides {
+  /** Caminho livre até a borda de cima/esquerda. */
+  back: boolean;
+  /** Caminho livre até a borda de baixo/direita. */
+  forward: boolean;
+}
+
 /** Posição variável do veículo: coluna se horizontal, linha se vertical. */
 export function posOf(v: Vehicle): number {
   return v.dir === 'h' ? v.col : v.row;
+}
+
+/** Última posição em que o veículo ainda está inteiro dentro da garagem. */
+export function lastPos(v: Vehicle): number {
+  return SIZE - v.len;
 }
 
 export function parseBoard(board: string): Vehicle[] {
@@ -57,14 +72,7 @@ export function parseBoard(board: string): Vehicle[] {
     else throw new Error(`Veículo ${id} não está em linha reta`);
     vehicles.push({ id, row: rows[0], col: cols[0], len, dir, target: id === TARGET });
   }
-
-  const target = vehicles.find((v) => v.target);
-  if (!target) throw new Error('Fase sem o carro vermelho');
-  if (target.dir !== 'h' || target.row !== EXIT_ROW) {
-    throw new Error('O carro vermelho precisa estar deitado na linha da saída');
-  }
-  // Ordem estável: alvo primeiro, depois por letra.
-  vehicles.sort((a, b) => (a.target === b.target ? a.id.localeCompare(b.id) : a.target ? -1 : 1));
+  vehicles.sort((a, b) => a.id.localeCompare(b.id));
   return vehicles;
 }
 
@@ -93,7 +101,7 @@ export function buildGrid(vehicles: readonly Vehicle[]): Int8Array {
   return grid;
 }
 
-/** Até onde o veículo pode deslizar para cada lado (posições mínima e máxima). */
+/** Até onde o veículo pode deslizar dentro da garagem (posições mínima e máxima). */
 export function moveRange(vehicles: readonly Vehicle[], index: number, grid = buildGrid(vehicles)): Range {
   const v = vehicles[index];
   const at = (p: number) => (v.dir === 'h' ? grid[v.row * SIZE + p] : grid[p * SIZE + v.col]);
@@ -105,6 +113,12 @@ export function moveRange(vehicles: readonly Vehicle[], index: number, grid = bu
   return { min, max };
 }
 
+/** Para que lados o veículo consegue sair da garagem agora. */
+export function exitSides(vehicles: readonly Vehicle[], index: number, grid = buildGrid(vehicles)): ExitSides {
+  const r = moveRange(vehicles, index, grid);
+  return { back: r.min === 0, forward: r.max === lastPos(vehicles[index]) };
+}
+
 /** Novo array com o veículo `index` na posição `pos` (não altera o original). */
 export function withPosition(vehicles: readonly Vehicle[], index: number, pos: number): Vehicle[] {
   return vehicles.map((v, i) => {
@@ -113,19 +127,7 @@ export function withPosition(vehicles: readonly Vehicle[], index: number, pos: n
   });
 }
 
-/** Fase vencida = o caminho do carro vermelho até a saída está livre. */
-export function isSolved(vehicles: readonly Vehicle[], grid = buildGrid(vehicles)): boolean {
-  const t = vehicles.find((v) => v.target);
-  if (!t) return false;
-  for (let c = t.col + t.len; c < SIZE; c++) {
-    if (grid[EXIT_ROW * SIZE + c] !== -1) return false;
-  }
-  return true;
-}
-
-/** Carro horizontal à direita do vermelho, na linha da saída, deixa a fase impossível. */
-export function hasBlockingLaneCar(vehicles: readonly Vehicle[]): boolean {
-  const t = vehicles.find((v) => v.target);
-  if (!t) return false;
-  return vehicles.some((v) => !v.target && v.dir === 'h' && v.row === EXIT_ROW && v.col > t.col);
+/** Novo array sem o veículo `index` (ele saiu da garagem). */
+export function without(vehicles: readonly Vehicle[], index: number): Vehicle[] {
+  return vehicles.filter((_, i) => i !== index);
 }
