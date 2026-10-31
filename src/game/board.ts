@@ -6,9 +6,13 @@
 //   'A'  carrinho vermelho (o "herói"; segue as mesmas regras dos outros)
 //   'B'..'Z' outros veículos (2 casas = carro, 3 casas = caminhão)
 //
-// As bordas da garagem são abertas: um veículo sai quando o caminho dele
-// até a borda (pela frente ou por trás) está livre. A fase termina quando
-// a garagem fica vazia.
+// Um veículo sai da garagem quando o caminho dele até a borda (pela frente
+// ou por trás) está livre e aquela saída não tem cerca. A fase termina
+// quando a garagem fica vazia.
+//
+// Cercas: string "cima direita baixo esquerda", 8 caracteres por lado
+// ('o' = aberta, 'x' = cerca), uma posição para cada fileira/coluna.
+// Cima e baixo vão da coluna 0 à 7; esquerda e direita, da linha 0 à 7.
 
 export const SIZE = 8;
 export const TARGET = 'A';
@@ -27,6 +31,39 @@ export interface Vehicle {
 export interface Range {
   min: number;
   max: number;
+}
+
+export type Side = 'top' | 'right' | 'bottom' | 'left';
+export const SIDES: readonly Side[] = ['top', 'right', 'bottom', 'left'];
+
+/** Saídas da borda: true = aberta, false = cerca. Uma por fileira/coluna. */
+export type Gates = Record<Side, boolean[]>;
+
+export function parseGates(text?: string): Gates {
+  const parts = text ? text.trim().split(/\s+/) : SIDES.map(() => 'o'.repeat(SIZE));
+  if (parts.length !== 4 || parts.some((p) => p.length !== SIZE || /[^ox]/.test(p))) {
+    throw new Error(`Cercas inválidas: "${text}"`);
+  }
+  const gates = {} as Gates;
+  SIDES.forEach((side, k) => (gates[side] = [...parts[k]].map((ch) => ch === 'o')));
+  return gates;
+}
+
+export function serializeGates(gates: Gates): string {
+  return SIDES.map((side) => gates[side].map((open) => (open ? 'o' : 'x')).join('')).join(' ');
+}
+
+export const OPEN_GATES: Gates = parseGates();
+
+/** Por qual lado da borda (e em qual faixa) o veículo sairia indo para trás ou para frente. */
+export function gateOf(v: Vehicle, way: 'back' | 'forward'): { side: Side; lane: number } {
+  if (v.dir === 'h') return { side: way === 'back' ? 'left' : 'right', lane: v.row };
+  return { side: way === 'back' ? 'top' : 'bottom', lane: v.col };
+}
+
+export function gateOpen(gates: Gates, v: Vehicle, way: 'back' | 'forward'): boolean {
+  const g = gateOf(v, way);
+  return gates[g.side][g.lane];
 }
 
 export interface ExitSides {
@@ -113,10 +150,19 @@ export function moveRange(vehicles: readonly Vehicle[], index: number, grid = bu
   return { min, max };
 }
 
-/** Para que lados o veículo consegue sair da garagem agora. */
-export function exitSides(vehicles: readonly Vehicle[], index: number, grid = buildGrid(vehicles)): ExitSides {
+/** Para que lados o veículo consegue sair da garagem agora (caminho livre e sem cerca). */
+export function exitSides(
+  vehicles: readonly Vehicle[],
+  index: number,
+  gates: Gates = OPEN_GATES,
+  grid = buildGrid(vehicles),
+): ExitSides {
+  const v = vehicles[index];
   const r = moveRange(vehicles, index, grid);
-  return { back: r.min === 0, forward: r.max === lastPos(vehicles[index]) };
+  return {
+    back: r.min === 0 && gateOpen(gates, v, 'back'),
+    forward: r.max === lastPos(v) && gateOpen(gates, v, 'forward'),
+  };
 }
 
 /** Novo array com o veículo `index` na posição `pos` (não altera o original). */

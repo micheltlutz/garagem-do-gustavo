@@ -1,16 +1,21 @@
-// Tabuleiro na tela: desenha os veículos e cuida do arrastar e do tocar.
-// Qualquer veículo com caminho livre até a borda pode sair da garagem;
+// Tabuleiro na tela: desenha os veículos e as cercas e cuida do arrastar e do tocar.
+// Um veículo com caminho livre até uma saída sem cerca pode sair da garagem;
 // a fase termina quando ela fica vazia.
 
 import {
+  SIDES,
   SIZE,
   exitSides,
+  gateOf,
+  gateOpen,
+  parseGates,
   lastPos,
   moveRange,
   parseBoard,
   posOf,
   withPosition,
   without,
+  type Gates,
   type Range,
   type Vehicle,
 } from '../game/board.ts';
@@ -43,6 +48,8 @@ interface Drag {
   range: Range;
   /** Até onde dá para arrastar, incluindo sair pelas bordas livres. */
   reach: Range;
+  /** Lados em que o veículo, encostado na borda, bate numa cerca. */
+  fenced: { back: boolean; forward: boolean };
   startPos: number;
   startClient: number;
   startX: number;
@@ -72,9 +79,11 @@ export class BoardView {
   private readonly frame: HTMLElement;
   private readonly grid: HTMLElement;
   private readonly arrow: HTMLElement;
+  private readonly ghost: HTMLElement;
   private readonly events: BoardEvents;
   private vehicles: Vehicle[] = [];
   private start: Vehicle[] = [];
+  private gates: Gates = parseGates();
   private levelIndex = 0;
   private readonly els = new Map<string, HTMLElement>();
   private cell = 60;
@@ -89,12 +98,14 @@ export class BoardView {
     this.root.innerHTML = `
       <div class="board-frame">
         <div class="board-grid">
+          <div class="ghost" hidden>${ICONS.chevrons}</div>
           <div class="hint-arrow" hidden>${ICONS.chevrons}</div>
         </div>
       </div>`;
     this.frame = this.root.querySelector('.board-frame')!;
     this.grid = this.root.querySelector('.board-grid')!;
     this.arrow = this.root.querySelector('.hint-arrow')!;
+    this.ghost = this.root.querySelector('.ghost')!;
     this.frame.style.setProperty('--grid-n', String(SIZE));
 
     this.grid.addEventListener('pointerdown', (e) => this.onDown(e));
@@ -107,9 +118,11 @@ export class BoardView {
   }
 
   /** Monta uma fase nova. */
-  load(board: string, levelIndex: number): void {
+  load(board: string, gates: string, levelIndex: number): void {
     this.levelIndex = levelIndex;
     this.start = parseBoard(board);
+    this.gates = parseGates(gates);
+    this.renderFences();
     this.render(80);
   }
 
@@ -119,34 +132,45 @@ export class BoardView {
     this.render(0);
   }
 
-  /** Mostra qual veículo tirar: ele balança e uma seta pulsa na borda por onde sai. */
+  /**
+   * Dica: o veículo certo balança. Se ele pode sair, uma seta pulsa na borda;
+   * se precisa ser empurrado para o lado, um contorno mostra para onde.
+   */
   showHint(): void {
     if (this.locked || this.drag) return;
-    const move = nextMove(this.vehicles);
+    const move = nextMove(this.vehicles, this.gates);
     if (!move) return;
     this.clearHint();
     const v = this.vehicles[move.index];
     const el = this.els.get(v.id)!;
-    const sign = move.exit === 'forward' ? 1 : -1;
+    const sign = Math.sign(move.to - posOf(v));
     const nudge = this.cell * 0.12 * sign;
     el.style.setProperty('--nx', v.dir === 'h' ? `${nudge}px` : '0px');
     el.style.setProperty('--ny', v.dir === 'v' ? `${nudge}px` : '0px');
     el.classList.add('hint');
-
-    // A seta fica em cima da borda, na faixa do veículo, apontando para fora.
-    const edge = move.exit === 'forward' ? SIZE - 0.5 : -0.5;
-    const x = v.dir === 'h' ? edge : v.col;
-    const y = v.dir === 'v' ? edge : v.row;
-    this.arrow.style.transform = `translate3d(${x * this.cell}px, ${y * this.cell}px, 0)`;
     const angle = v.dir === 'h' ? (sign > 0 ? 0 : 180) : sign > 0 ? 90 : -90;
-    this.arrow.style.setProperty('--arrow-rotate', `${angle}deg`);
-    this.arrow.hidden = false;
+
+    if (move.exit) {
+      // A seta fica em cima da borda, na faixa do veículo, apontando para fora.
+      const edge = move.exit === 'forward' ? SIZE - 0.5 : -0.5;
+      const x = v.dir === 'h' ? edge : v.col;
+      const y = v.dir === 'v' ? edge : v.row;
+      this.arrow.style.transform = `translate3d(${x * this.cell}px, ${y * this.cell}px, 0)`;
+      this.arrow.style.setProperty('--arrow-rotate', `${angle}deg`);
+      this.arrow.hidden = false;
+    } else {
+      this.setBox(this.ghost, v);
+      this.ghost.style.transform = this.translate(v, move.to);
+      this.ghost.style.setProperty('--arrow-rotate', `${angle}deg`);
+      this.ghost.hidden = false;
+    }
     this.hintTimer = window.setTimeout(() => this.clearHint(), 6000);
   }
 
   clearHint(): void {
     clearTimeout(this.hintTimer);
     this.arrow.hidden = true;
+    this.ghost.hidden = true;
     for (const el of this.els.values()) el.classList.remove('hint');
   }
 
@@ -175,7 +199,9 @@ export class BoardView {
       const el = document.createElement('div');
       el.className = 'vehicle';
       el.dataset.id = v.id;
-      const flip = rand() < 0.5;
+      // O veículo "olha" para a saída aberta; com as duas abertas, para um lado qualquer.
+      const backOpen = gateOpen(this.gates, v, 'back');
+      const flip = backOpen === gateOpen(this.gates, v, 'forward') ? rand() < 0.5 : backOpen;
       const paint = v.target ? RED : colors[colorIndex++ % colors.length];
       el.innerHTML = `<div class="art">${vehicleSvg(v.len, v.dir, paint, flip, v.target)}</div>`;
       this.grid.appendChild(el);
@@ -186,6 +212,41 @@ export class BoardView {
       );
     });
     this.layout();
+  }
+
+  /** Desenha uma cerca listrada em cada saída fechada. */
+  private renderFences(): void {
+    for (const el of this.frame.querySelectorAll('.fence')) el.remove();
+    for (const side of SIDES) {
+      this.gates[side].forEach((open, lane) => {
+        if (open) return;
+        const el = document.createElement('div');
+        el.className = `fence fence-${side}`;
+        el.dataset.side = side;
+        el.style.setProperty('--lane', String(lane));
+        this.frame.appendChild(el);
+      });
+    }
+  }
+
+  /** A cerca balança quando um veículo bate nela. */
+  private hitFence(v: Vehicle, way: 'back' | 'forward'): void {
+    const g = gateOf(v, way);
+    const el = [...this.frame.querySelectorAll<HTMLElement>(`.fence-${g.side}`)].find(
+      (f) => f.style.getPropertyValue('--lane') === String(g.lane),
+    );
+    if (!el) return;
+    const axis = v.dir === 'h' ? 'X' : 'Y';
+    const push = way === 'forward' ? 1 : -1;
+    el.animate(
+      [
+        { transform: 'none' },
+        { transform: `translate${axis}(${push * 30}%)` },
+        { transform: `translate${axis}(${-push * 6}%)` },
+        { transform: 'none' },
+      ],
+      { duration: 300, easing: 'ease-out' },
+    );
   }
 
   private layout(): void {
@@ -272,13 +333,17 @@ export class BoardView {
     const v = this.vehicles[index];
     const pos = posOf(v);
     const range = moveRange(this.vehicles, index);
-    const sides = exitSides(this.vehicles, index);
+    const sides = exitSides(this.vehicles, index, this.gates);
     this.drag = {
       id: v.id,
       pointerId: e.pointerId,
       el,
       range,
       reach: { min: sides.back ? -v.len : range.min, max: sides.forward ? SIZE : range.max },
+      fenced: {
+        back: range.min === 0 && !gateOpen(this.gates, v, 'back'),
+        forward: range.max === lastPos(v) && !gateOpen(this.gates, v, 'forward'),
+      },
       startPos: pos,
       startClient: v.dir === 'h' ? e.clientX : e.clientY,
       startX: e.clientX,
@@ -311,6 +376,8 @@ export class BoardView {
       if (!d.bumped && over > 0.1) {
         d.bumped = true;
         sfx.bump();
+        const way = raw < min ? 'back' : 'forward';
+        if (d.fenced[way]) this.hitFence(v, way);
       }
     }
     const cellNow = Math.round(clamp(shown, min, max));
@@ -377,6 +444,8 @@ export class BoardView {
     if (!side) {
       if (!v.target) sfx.bump();
       this.shake(v);
+      if (d.fenced.back && d.startPos === 0) this.hitFence(v, 'back');
+      if (d.fenced.forward && d.startPos === lastPos(v)) this.hitFence(v, 'forward');
       this.finishDrag(d, d.startPos, true);
       return;
     }

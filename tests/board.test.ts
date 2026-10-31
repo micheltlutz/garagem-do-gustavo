@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGrid,
   exitSides,
+  gateOf,
   moveRange,
   parseBoard,
+  parseGates,
   serializeBoard,
+  serializeGates,
   withPosition,
   without,
 } from '../src/game/board.ts';
@@ -85,5 +88,38 @@ describe('withPosition / without', () => {
     const fewer = without(v, 1);
     expect(fewer.map((x) => x.id)).toEqual(['A', 'C', 'D']);
     expect(v).toHaveLength(4);
+  });
+});
+
+describe('cercas', () => {
+  it('lê e escreve no formato "cima direita baixo esquerda"', () => {
+    const text = 'oxoooooo oooooooo ooooooxo oooxoooo';
+    const g = parseGates(text);
+    expect(g.top[1]).toBe(false);
+    expect(g.bottom[6]).toBe(false);
+    expect(g.left[3]).toBe(false);
+    expect(g.right.every(Boolean)).toBe(true);
+    expect(serializeGates(g)).toBe(text);
+    expect(serializeGates(parseGates())).toBe('oooooooo oooooooo oooooooo oooooooo');
+  });
+
+  it('rejeita cercas mal escritas', () => {
+    expect(() => parseGates('oooo')).toThrow();
+    expect(() => parseGates('oooooooo oooooooo oooooooo ooooooo?')).toThrow();
+  });
+
+  it('cada ponta da faixa corresponde a um lado da borda', () => {
+    const [a, b] = parseBoard(rows('........', '.....B..', '.....B..', '.AA.....', '........', '........', '........', '........'));
+    expect(gateOf(a, 'back')).toEqual({ side: 'left', lane: 3 });
+    expect(gateOf(a, 'forward')).toEqual({ side: 'right', lane: 3 });
+    expect(gateOf(b, 'back')).toEqual({ side: 'top', lane: 5 });
+    expect(gateOf(b, 'forward')).toEqual({ side: 'bottom', lane: 5 });
+  });
+
+  it('com cerca, o veículo não sai por aquele lado mesmo com caminho livre', () => {
+    const v = parseBoard(rows('........', '........', '........', '...AA...', '........', '........', '........', '........'));
+    expect(exitSides(v, 0)).toEqual({ back: true, forward: true });
+    const g = parseGates('oooooooo oooxoooo oooooooo oooooooo'); // cerca na direita da linha 3
+    expect(exitSides(v, 0, g)).toEqual({ back: true, forward: false });
   });
 });

@@ -18,12 +18,12 @@ Bom saber:
 
 ## Como se joga
 
-- A garagem tem as bordas abertas. A meta é **tirar todos os veículos** e deixá-la vazia.
-- Cada veículo só anda no sentido em que está virado e sai pela frente ou por trás, quando o caminho até a borda está livre.
+- A meta é **tirar todos os veículos** e deixar a garagem vazia.
+- Cada veículo só anda no sentido em que está virado e sai pela frente ou por trás, quando o caminho até a borda está livre e **não há cerca** naquela saída. A frente do veículo aponta para uma saída aberta.
 - **Arrastar** move o veículo (ou o leva para fora); **tocar** faz ele sair, se estiver livre, ou deslizar até o fim do caminho.
-- A **lâmpada** mostra qual veículo tirar e por onde (a dica também aparece sozinha depois de 40 segundos parado).
-- A garagem nunca trava: sempre existe algum veículo livre para sair.
-- 36 fases (8x8) em 3 mundos: amarelo (4 a 7 veículos), verde (8 a 12) e roxo (13 a 16).
+- A **lâmpada** mostra o que fazer: uma seta na borda (tire este veículo por aqui) ou um contorno tracejado (empurre este veículo para cá). A dica também aparece sozinha depois de 40 segundos parado.
+- Toda fase tem solução e nunca trava: às vezes só é preciso empurrar um veículo para o lado.
+- 36 fases (8x8) em 3 mundos: amarelo (poucas cercas), verde (mais cercas, às vezes um empurrão) e roxo (cerca em toda faixa ocupada e de 1 a 3 empurrões).
 
 ## Desenvolvimento
 

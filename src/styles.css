@@ -406,7 +406,7 @@ body {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
 }
 
-/* A garagem: bordas abertas, marcadas só por uma faixa tracejada na cor do mundo. */
+/* A garagem, com um contorno fino na cor do mundo. */
 .board-grid {
   position: absolute;
   left: var(--road-w);
@@ -419,8 +419,7 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.13) 2px, transparent 2px);
   background-size: var(--cell) var(--cell);
   background-position: -1px -1px;
-  outline: calc(var(--cell) * 0.06) dashed var(--wall);
-  outline-offset: calc(var(--road-w) * 0.35);
+  box-shadow: 0 0 0 calc(var(--cell) * 0.04) var(--wall);
   touch-action: none;
 }
 
@@ -467,6 +466,70 @@ body {
   50% {
     transform: translate(var(--nx, 0px), var(--ny, 0px));
   }
+}
+
+/* Cercas listradas na rua, nas saídas fechadas. */
+.fence {
+  --thick: calc(var(--road-w) * 0.62);
+  --gap: 3px;
+  position: absolute;
+  z-index: 1;
+  border-radius: 4px;
+  background: repeating-linear-gradient(45deg, #ffc107 0 7px, #263238 7px 14px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.fence-top,
+.fence-bottom {
+  left: calc(var(--road-w) + var(--cell) * var(--lane) + var(--gap));
+  width: calc(var(--cell) - var(--gap) * 2);
+  height: var(--thick);
+}
+
+.fence-top {
+  top: calc((var(--road-w) - var(--thick)) / 2);
+}
+
+.fence-bottom {
+  top: calc(var(--road-w) + var(--cell) * var(--grid-n) + (var(--road-w) - var(--thick)) / 2);
+}
+
+.fence-left,
+.fence-right {
+  top: calc(var(--road-w) + var(--cell) * var(--lane) + var(--gap));
+  height: calc(var(--cell) - var(--gap) * 2);
+  width: var(--thick);
+}
+
+.fence-left {
+  left: calc((var(--road-w) - var(--thick)) / 2);
+}
+
+.fence-right {
+  left: calc(var(--road-w) + var(--cell) * var(--grid-n) + (var(--road-w) - var(--thick)) / 2);
+}
+
+/* Dica de empurrão: contorno tracejado mostrando para onde levar o veículo. */
+.ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: calc(var(--cell) * 0.2);
+  border: calc(var(--cell) * 0.05) dashed rgba(255, 255, 255, 0.95);
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  pointer-events: none;
+  animation: arrow-pulse 1s ease-in-out infinite;
+}
+
+.ghost svg {
+  width: calc(var(--cell) * 0.7);
+  height: calc(var(--cell) * 0.7);
+  transform: rotate(var(--arrow-rotate, 0deg));
 }
 
 /* Dica: seta pulsando na borda, por onde o veículo deve sair. */

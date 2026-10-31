@@ -186,7 +186,7 @@ export class GameScreen {
     this.badge.textContent = String(level + 1);
     this.win.hidden = true;
     clearConfetti(this.el);
-    this.board.load(LEVELS[level].board, level);
+    this.board.load(LEVELS[level].board, LEVELS[level].gates, level);
     this.resetIdle();
   }
 
