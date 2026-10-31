@@ -20,7 +20,7 @@ Bom saber:
 
 - Cada veículo só anda no sentido em que está virado.
 - **Arrastar** move o carro; **tocar** faz ele deslizar até o fim do caminho livre.
-- Quando o caminho do carro vermelho fica livre, ele buzina e sai sozinho.
+- Quando o caminho do carro vermelho fica livre, ele buzina, brilha e balança: é só **arrastar** (ou tocar) para tirá-lo da garagem.
 - A **lâmpada** mostra qual carro mexer (a dica também aparece sozinha depois de 40 segundos parado).
 - 36 fases em 3 mundos: amarelo (1–2 jogadas), verde (3–4) e roxo (5–7).
 

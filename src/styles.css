@@ -455,6 +455,12 @@ body {
   animation: exit-blink 1s ease-in-out infinite;
 }
 
+/* Saída aberta: setas mais rápidas e brilhantes. */
+.board-frame.open .exit svg {
+  color: #ffffff;
+  animation-duration: 0.5s;
+}
+
 @keyframes exit-blink {
   50% {
     opacity: 0.35;
@@ -492,18 +498,35 @@ body {
   filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.35)) brightness(1.05);
 }
 
+.vehicle.ready .art,
+.vehicle.leaving .art {
+  filter: drop-shadow(0 0 calc(var(--cell) * 0.12) #fff176) drop-shadow(0 0 calc(var(--cell) * 0.05) #ffffff);
+}
+
+/* Caminho livre: o vermelho balança em direção à saída, chamando a criança. */
+.vehicle.ready .art {
+  animation: ready-nudge 0.9s ease-in-out infinite;
+}
+
+@keyframes ready-nudge {
+  50% {
+    transform: translateX(5%);
+  }
+}
+
 .vehicle.hint .art {
   animation: nudge 0.8s ease-in-out infinite;
+}
+
+.vehicle.dragging .art,
+.vehicle.leaving .art {
+  animation: none;
 }
 
 @keyframes nudge {
   50% {
     transform: translate(var(--nx, 0px), var(--ny, 0px));
   }
-}
-
-.vehicle.glow .art {
-  filter: drop-shadow(0 0 calc(var(--cell) * 0.12) #fff176) drop-shadow(0 0 calc(var(--cell) * 0.05) #ffffff);
 }
 
 /* Dica: contorno tracejado mostrando para onde levar o carro. */

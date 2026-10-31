@@ -11,7 +11,7 @@ import {
   type Range,
   type Vehicle,
 } from '../game/board.ts';
-import { nextMove } from '../game/solver.ts';
+import { nextMove, type Move } from '../game/solver.ts';
 import { sfx } from '../audio/sfx.ts';
 import { PALETTE, RED, vehicleSvg } from './carArt.ts';
 import { ICONS } from './icons.ts';
@@ -20,13 +20,15 @@ import { ICONS } from './icons.ts';
 const WALL = 0.38;
 /** Quanto o dedo pode andar e ainda contar como toque (px). */
 const TAP_SLOP = 12;
+/** Quanto o vermelho precisa passar da borda para sair (em casas). Pouco, para mãos pequenas. */
+const EXIT_PUSH = 0.15;
 /** Quanto o carro "estica" além do limite ao ser empurrado (em casas). */
 const OVERSHOOT = 0.18;
 
 export interface BoardEvents {
   /** Um veículo mudou de casa. */
   onMove(): void;
-  /** O caminho do vermelho ficou livre (já depois da animação). */
+  /** O carro vermelho saiu da garagem (já depois da animação). */
   onSolved(): void;
 }
 
@@ -45,6 +47,10 @@ interface Drag {
   lastCell: number;
   bumped: boolean;
   samples: { t: number; p: number }[];
+  /** Carro vermelho com caminho livre: pode ser arrastado para fora. */
+  canExit: boolean;
+  /** Última posição dentro do tabuleiro. */
+  lastIn: number;
 }
 
 function seeded(seed: number): () => number {
@@ -58,7 +64,6 @@ function seeded(seed: number): () => number {
 }
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class BoardView {
   readonly root: HTMLElement;
@@ -121,6 +126,7 @@ export class BoardView {
       this.grid.appendChild(el);
       return el;
     });
+    this.updateReady(false);
     this.layout();
     this.els.forEach((el, i) => {
       el.querySelector('.art')!.animate(
@@ -142,12 +148,13 @@ export class BoardView {
       const to = posOf(v);
       if (from !== to) this.animateTo(i, from, to, 160 + 40 * Math.abs(to - from));
     });
+    this.updateReady(false);
   }
 
   /** Mostra qual carro mexer e para onde. */
   showHint(): void {
     if (this.locked || this.drag) return;
-    const move = nextMove(this.vehicles);
+    const move = isSolved(this.vehicles) ? this.exitHint() : nextMove(this.vehicles);
     if (!move) return;
     this.clearHint();
     const v = this.vehicles[move.index];
@@ -172,33 +179,52 @@ export class BoardView {
     for (const el of this.els) el.classList.remove('hint');
   }
 
-  /** O carro vermelho brilha, buzina e sai acelerando pela saída. */
-  async driveOut(): Promise<void> {
+  /** Com o caminho livre, a dica leva o vermelho até a borda (ou para fora, se já estiver lá). */
+  private exitHint(): Move {
+    const index = this.vehicles.findIndex((v) => v.target);
+    const v = this.vehicles[index];
+    const edge = SIZE - v.len;
+    return { index, to: posOf(v) < edge ? edge : SIZE };
+  }
+
+  /** Caminho livre: o vermelho brilha e balança, esperando ser levado para fora. */
+  private updateReady(announce: boolean): void {
     const i = this.vehicles.findIndex((v) => v.target);
-    const v = this.vehicles[i];
     const el = this.els[i];
-    el.classList.add('glow', 'leaving');
-    sfx.honk();
-    await wait(450);
+    if (!el) return;
+    const ready = isSolved(this.vehicles);
+    const wasReady = el.classList.contains('ready');
+    el.classList.toggle('ready', ready);
+    this.frame.classList.toggle('open', ready);
+    if (ready && !wasReady && announce) sfx.honk();
+  }
+
+  /** O vermelho sai acelerando pela saída e a fase termina. */
+  private exitCar(d: Drag, from: number): void {
+    this.drag = null;
+    this.locked = true;
+    this.clearHint();
+    d.el.classList.remove('dragging');
+    d.el.classList.add('leaving');
+    if (d.el.hasPointerCapture(d.pointerId)) d.el.releasePointerCapture(d.pointerId);
+    const v = this.vehicles[d.index];
     const gridLeft = this.grid.getBoundingClientRect().left;
     const end = (window.innerWidth - gridLeft) / this.cell + 0.5;
-    sfx.engine();
-    const anim = el.animate(
-      [
-        { transform: this.translate(v, v.col), offset: 0 },
-        { transform: this.translate(v, v.col - 0.15), offset: 0.15 },
-        { transform: this.translate(v, end), offset: 1 },
-      ],
-      { duration: 950, easing: 'cubic-bezier(.55,0,.85,.35)', fill: 'forwards' },
-    );
-    await anim.finished.catch(() => {});
+    sfx.honk();
+    sfx.engine(0.8);
+    const anim = d.el.animate([{ transform: this.translate(v, from) }, { transform: this.translate(v, end) }], {
+      duration: clamp(250 + (end - from) * 60, 450, 900),
+      easing: 'cubic-bezier(.35,.1,.85,.45)',
+      fill: 'forwards',
+    });
+    void anim.finished.catch(() => {}).then(() => this.events.onSolved());
   }
 
   /** Termina um arrasto em andamento (ex.: o app foi para o segundo plano). */
   cancelDrag(): void {
     const d = this.drag;
     if (!d) return;
-    this.finishDrag(d, Math.round(clamp(d.shown, d.range.min, d.range.max)), false);
+    this.finishDrag(d, Math.round(clamp(d.shown, d.range.min, d.lastIn)), false);
   }
 
   // ---------- layout ----------
@@ -271,11 +297,17 @@ export class BoardView {
     this.clearHint();
     const v = this.vehicles[index];
     const pos = posOf(v);
+    const range = moveRange(this.vehicles, index);
+    const canExit = v.target && isSolved(this.vehicles);
+    const lastIn = range.max;
+    if (canExit) range.max = SIZE;
     this.drag = {
       index,
       pointerId: e.pointerId,
       el,
-      range: moveRange(this.vehicles, index),
+      range,
+      canExit,
+      lastIn,
       startPos: pos,
       startClient: v.dir === 'h' ? e.clientX : e.clientY,
       startX: e.clientX,
@@ -328,6 +360,11 @@ export class BoardView {
     const { min, max } = d.range;
     const isTap = !cancelled && d.travel < TAP_SLOP && e.timeStamp - d.startTime < 600;
 
+    if (isTap && d.canExit) {
+      this.exitCar(d, d.startPos);
+      return;
+    }
+
     if (isTap) {
       if (v.target) sfx.honk();
       const target = this.tapTarget(d, e);
@@ -339,7 +376,7 @@ export class BoardView {
       return;
     }
 
-    let target = Math.round(clamp(d.shown, min, max));
+    let projected = clamp(d.shown, min, max);
     if (!cancelled) {
       // Leva em conta a velocidade do dedo: um "peteleco" vai mais longe.
       const recent = d.samples.filter((s) => e.timeStamp - s.t < 100);
@@ -349,10 +386,16 @@ export class BoardView {
         const dt = last.t - first.t;
         if (dt > 8) {
           const velocity = (last.p - first.p) / dt; // casas por ms
-          target = Math.round(clamp(clamp(d.shown, min, max) + velocity * 140, min, max));
+          projected += velocity * 140;
         }
       }
     }
+    // Arrastou o vermelho para fora (ou deu um peteleco em direção à saída).
+    if (d.canExit && !cancelled && Math.max(d.shown, projected) >= d.lastIn + EXIT_PUSH) {
+      this.exitCar(d, d.shown);
+      return;
+    }
+    const target = Math.round(clamp(projected, min, d.lastIn));
     // Tentou arrastar para o lado errado: o carro "treme" para mostrar que não vai.
     if (target === d.startPos && Math.abs(d.shown - d.startPos) < 0.2) this.shake(d.index);
     this.finishDrag(d, target, false);
@@ -389,9 +432,8 @@ export class BoardView {
     if (target === d.startPos) return;
     this.vehicles = withPosition(this.vehicles, d.index, target);
     this.events.onMove();
-    if (isSolved(this.vehicles)) {
-      this.locked = true;
-      void anim.finished.catch(() => {}).then(() => this.events.onSolved());
-    }
+    void anim.finished.catch(() => {}).then(() => {
+      if (!this.locked) this.updateReady(true);
+    });
   }
 }

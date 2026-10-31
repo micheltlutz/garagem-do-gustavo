@@ -215,7 +215,7 @@ export class GameScreen {
     const session = this.session;
     clearTimeout(this.idleTimer);
     progress.markDone(this.level);
-    await this.board.driveOut();
+    await new Promise((r) => setTimeout(r, 150));
     if (session !== this.session) return;
     sfx.win();
     confetti(this.el);
