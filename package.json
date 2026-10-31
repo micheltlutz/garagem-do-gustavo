@@ -1,0 +1,24 @@
+{
+  "name": "garagem-do-gustavo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Jogo de estacionamento para crianças, sem propagandas.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "levels": "node scripts/generate-levels.ts",
+    "icons": "pwa-assets-generator"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@vite-pwa/assets-generator": "2.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vite-plugin-pwa": "2.0.0",
+    "vitest": "5.0.5",
+    "workbox-window": "7.4.1"
+  }
+}
