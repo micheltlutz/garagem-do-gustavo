@@ -92,6 +92,13 @@ export class HomeScreen {
       onTap(iconButton('play', 'Jogar', 'big play'), () => nav.play(progress.nextLevel(LEVELS.length))),
       this.soundBtn,
     );
+
+    // Aberto pela página "Jogos do Gustavo": botão para voltar para lá.
+    if (location.hash === '#jogos') {
+      this.el.append(
+        onTap(iconButton('back', 'Todos os jogos', 'back-to-games'), () => location.assign('/jogos-do-gustavo/')),
+      );
+    }
   }
 
   show(): void {

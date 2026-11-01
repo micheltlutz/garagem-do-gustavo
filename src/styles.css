@@ -237,6 +237,15 @@ body {
   }
 }
 
+/* Botão de voltar para a página "Jogos do Gustavo" (só quando o jogo foi aberto por ela). */
+.btn.back-to-games {
+  --size: clamp(56px, 9vmin, 76px);
+  position: absolute;
+  top: var(--pad-t);
+  left: var(--pad-l);
+  z-index: 5;
+}
+
 .home-actions {
   display: flex;
   align-items: center;

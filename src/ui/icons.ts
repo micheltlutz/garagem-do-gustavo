@@ -30,6 +30,7 @@ export const ICONS = {
     `<path d="M8 19 H15 L25 10 V38 L15 29 H8 Z" fill="currentColor" ${solidEdge(3)}/>` +
       `<path d="M32 18 L42 30 M42 18 L32 30" ${stroke(4.5)}/>`,
   ),
+  back: svg(`<path d="M39 24 H11 M22 12 L10 24 L22 36" ${stroke(6)}/>`),
   next: svg(`<path d="M9 24 H37 M26 12 L38 24 L26 36" ${stroke(6)}/>`),
   check: svg(`<path d="M11 25 L20 34 L37 15" ${stroke(7)}/>`),
   chevrons: svg(`<path d="M10 12 L22 24 L10 36 M26 12 L38 24 L26 36" ${stroke(6)}/>`),
